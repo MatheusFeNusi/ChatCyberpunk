@@ -112,6 +112,7 @@ const msgInput=document.getElementById('msg');
 const statusEl=document.getElementById('status');
 let myNick,since=0,pollTimer,recorder=null,castStream=null;
 const seen=new Set();
+let pcs = {}; // peer connections for WebRTC
 
 async function api(path,body){
   const opts=body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{};
@@ -176,6 +177,21 @@ async function poll(){
       if(m.id&&seen.has(m.id))return;
       if(m.id)seen.add(m.id);
       if(m.kind==='rtc'){handleRTC(m);return;}
+      if(m.kind==='stream_start'){
+        sysMsg(`${m.nick} COMEÇOU A TRANSMITIR A TELA.`);
+        if(m.nick !== myNick) {
+          const div=document.createElement('div');
+          div.className='msg';
+          div.innerHTML=`<button onclick="watchStream('${m.nick}')" style="padding:8px 16px;margin-top:4px">ASSISTIR TELA DE ${m.nick}</button>`;
+          chat.appendChild(div);
+          chat.scrollTop=chat.scrollHeight;
+        }
+        return;
+      }
+      if(m.kind==='stream_stop'){
+        sysMsg(`${m.nick} PAROU A TRANSMISSÃO.`);
+        return;
+      }
       m.type==='chat'?render(m):sysMsg(m.text);
     });
     renderUsers(r.users);
@@ -246,37 +262,106 @@ async function toggleRec(){
 
 /* ===== TRANSMISSÃO DE TELA ===== */
 async function toggleCast(){
-  if(castStream){castStream.getTracks().forEach(t=>t.stop());castStream=null;document.getElementById('btn-cast').classList.remove('rec');sysMsg('TRANSMISSÃO PARADA.');return;}
+  if(castStream){
+    castStream.getTracks().forEach(t=>t.stop());
+    castStream=null;
+    document.getElementById('btn-cast').classList.remove('rec');
+    sysMsg('TRANSMISSÃO PARADA.');
+    Object.values(pcs).forEach(pc => pc.close());
+    pcs = {};
+    api('/api/send',{nick:myNick,text:'',kind:'stream_stop'});
+    return;
+  }
   try{
     castStream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:false});
     document.getElementById('btn-cast').classList.add('rec');
-    sysMsg('TRANSMISSÃO INICIADA. ABRINDO JANELA...');
+    sysMsg('TRANSMISSÃO INICIADA.');
     castStream.getTracks().forEach(t=>{t.onended=()=>{castStream=null;cancelCast()}});
-    /* Para funcionar com WebRTC de verdade em serverless precisa de signaling por mensagens.
-       Simples: enviar como imagem + atualizar uma janela popup */
-    const canvas=document.createElement('canvas');
-    const ctx=canvas.getContext('2d');
-    const video=document.createElement('video');
-    video.srcObject=castStream;video.play();
-    const interval=setInterval(async()=>{
-      if(!castStream)clearInterval(interval);
-      canvas.width=video.videoWidth/2;canvas.height=video.videoHeight/2;
-      ctx.drawImage(video,0,0,canvas.width,canvas.height);
-      const dataUrl=canvas.toDataURL('image/jpeg',0.5);
-      const pop=window.open('','_blank','width=640,height=400,top=50,left=50');
-      if(pop){
-        pop.document.write('<html><body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center"><img src="'+dataUrl+'" style="max-width:100%;max-height:100%"></body></html>');
-        pop.document.close();
-      }
-      await api('/api/send',{nick:myNick,text:dataUrl,kind:'image'});
-      poll();
-    },1000);
+    
+    // Notifica os outros usuários que a transmissão começou
+    await api('/api/send',{nick:myNick,text:'',kind:'stream_start'});
+    poll();
   }catch{sysMsg('ERRO: TRANSMISSÃO NÃO PERMITIDA PELO DISPOSITIVO')}
 }
 
 function cancelCast(){
   document.getElementById('btn-cast').classList.remove('rec');
   castStream=null;
+  Object.values(pcs).forEach(pc => pc.close());
+  pcs = {};
+  api('/api/send',{nick:myNick,text:'',kind:'stream_stop'});
+}
+
+let watchPopup = null;
+
+function watchStream(streamerNick) {
+  watchPopup = window.open('','_blank','width=800,height=480,top=60,left=60');
+  if(watchPopup&&!watchPopup.closed){
+    watchPopup.document.write(`<html><head><title>NETRUNNER // TELA DE ${streamerNick}</title></head><body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;height:100vh;color:#fcee0a;font-family:monospace">CARREGANDO TRANSMISSÃO...<video id="v" autoplay style="max-width:100%;max-height:100%;display:none"></video></body></html>`);
+    watchPopup.document.close();
+  }
+  api('/api/send',{nick:myNick,kind:'rtc',text:JSON.stringify({type:'request_offer', target:streamerNick})});
+}
+
+async function handleRTC(m) {
+  if (!myNick) return;
+  const msg = JSON.parse(m.text);
+  if (msg.target !== myNick) return;
+  
+  if (msg.type === 'request_offer' && castStream) {
+    // Streamer recebe request_offer e cria offer
+    const viewer = m.nick;
+    const pc = new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});
+    pcs[viewer] = pc;
+    
+    castStream.getTracks().forEach(t => pc.addTrack(t, castStream));
+    
+    pc.onicecandidate = e => {
+      if (e.candidate) {
+        api('/api/send',{nick:myNick,kind:'rtc',text:JSON.stringify({type:'candidate', target:viewer, payload:e.candidate})});
+      }
+    };
+    
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    api('/api/send',{nick:myNick,kind:'rtc',text:JSON.stringify({type:'offer', target:viewer, payload:offer})});
+  } 
+  else if (msg.type === 'offer') {
+    // Viewer recebe offer e cria answer
+    const streamer = m.nick;
+    const pc = new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]});
+    pcs[streamer] = pc;
+    
+    pc.ontrack = e => {
+      if(watchPopup && !watchPopup.closed) {
+        const v = watchPopup.document.getElementById('v');
+        if (v) {
+          v.srcObject = e.streams[0];
+          v.style.display = 'block';
+        }
+      }
+    };
+    
+    pc.onicecandidate = e => {
+      if (e.candidate) {
+        api('/api/send',{nick:myNick,kind:'rtc',text:JSON.stringify({type:'candidate', target:streamer, payload:e.candidate})});
+      }
+    };
+    
+    await pc.setRemoteDescription(new RTCSessionDescription(msg.payload));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    api('/api/send',{nick:myNick,kind:'rtc',text:JSON.stringify({type:'answer', target:streamer, payload:answer})});
+  }
+  else if (msg.type === 'answer') {
+    // Streamer recebe answer
+    const pc = pcs[m.nick];
+    if (pc) await pc.setRemoteDescription(new RTCSessionDescription(msg.payload));
+  }
+  else if (msg.type === 'candidate') {
+    const pc = pcs[m.nick];
+    if (pc) await pc.addIceCandidate(new RTCIceCandidate(msg.payload));
+  }
 }
 
 function rain(){
