@@ -16,7 +16,7 @@ function pushMsg(m) {
 function readBody(req) {
   return new Promise((resolve) => {
     let data = '';
-    req.on('data', c => { data += c; if (data.length > 4096) req.destroy(); });
+    req.on('data', c => { data += c; if (data.length > 8e6) req.destroy(); });
     req.on('end', () => { try { resolve(JSON.parse(data || '{}')); } catch { resolve({}); } });
   });
 }
@@ -40,10 +40,11 @@ const server = createServer(async (req, res) => {
   if (url.pathname === '/api/send' && req.method === 'POST') {
     const body = await readBody(req);
     const nick = String(body.nick || '').slice(0, 16).toUpperCase();
-    const text = String(body.text || '').slice(0, 500);
+    const kind = ['chat', 'image', 'audio', 'rtc'].includes(body.kind) ? body.kind : 'chat';
+    const text = String(body.text || '').slice(0, kind === 'chat' || kind === 'rtc' ? 20000 : 2_000_000);
     if (!nick || !text) return json(res, { ok: false });
     store.users[nick] = Date.now();
-    pushMsg({ type: 'chat', nick, text, time: now() });
+    pushMsg({ type: 'chat', kind, nick, text, time: now() });
     return json(res, { ok: true });
   }
 

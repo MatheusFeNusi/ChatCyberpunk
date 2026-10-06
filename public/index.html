@@ -4,246 +4,69 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NETRUNNER // CHAT PRIVADO</title>
-<!-- v4-cyberpunk2077 -->
 <style>
-  :root {
-    --c: #fcee0a;            /* primária (padrão: amarelo 2077) */
-    --c-dim: rgba(252,238,10,.45);
-    --c-soft: rgba(252,238,10,.08);
-    --bg: #0a0a0a;
-    --panel: rgba(15,15,10,.92);
-    --danger: #ff003c;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    background: var(--bg);
-    color: var(--c);
-    font-family: 'Courier New', monospace;
-    height: 100vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-  /* scanlines CRT */
-  body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: repeating-linear-gradient(0deg, rgba(0,0,0,.22) 0 1px, transparent 1px 3px);
-    pointer-events: none;
-    z-index: 99;
-  }
-  .glow { text-shadow: 0 0 6px var(--c), 0 0 16px var(--c-dim); }
-
-  /* ===== efeito glitch estilo 2077 ===== */
-  .glitch { position: relative; }
-  .glitch::before, .glitch::after {
-    content: attr(data-text);
-    position: absolute;
-    left: 0; top: 0;
-    width: 100%;
-    overflow: hidden;
-  }
-  .glitch::before { color: var(--danger); clip-path: inset(20% 0 60% 0); animation: glitch-a 2.5s infinite steps(2); opacity: .8; }
-  .glitch::after { color: #00f0ff; clip-path: inset(60% 0 15% 0); animation: glitch-b 3.1s infinite steps(2); opacity: .8; }
-  @keyframes glitch-a {
-    0%,92% { transform: none; opacity: 0; }
-    93% { transform: translate(-3px, 1px); opacity: .8; }
-    96% { transform: translate(3px, -1px); opacity: .8; }
-    100% { transform: none; opacity: 0; }
-  }
-  @keyframes glitch-b {
-    0%,88% { transform: none; opacity: 0; }
-    89% { transform: translate(3px, 1px); opacity: .8; }
-    94% { transform: translate(-3px, 0); opacity: .8; }
-    100% { transform: none; opacity: 0; }
-  }
-
-  /* ===== cantos cortados estilo CP2077 ===== */
-  .cyber-cut {
-    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
-  }
-
-  /* ===== seletor de tema ===== */
-  #themes, .theme-bar { display: flex; gap: 8px; align-items: center; }
-  .mini-btn {
-    background: transparent;
-    color: var(--c);
-    border: 1px solid var(--c);
-    font-family: inherit;
-    font-size: 10px;
-    letter-spacing: 2px;
-    padding: 5px 12px;
-    cursor: pointer;
-    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
-    transition: all .15s;
-  }
-  .mini-btn:hover { background: var(--c); color: #000; }
-  #themes span { font-size: 10px; letter-spacing: 2px; color: var(--c-dim); }
-  .swatch {
-    width: 18px; height: 18px;
-    border: 1px solid rgba(255,255,255,.25);
-    cursor: pointer;
-    clip-path: polygon(0 0, 100% 0, 100% 70%, 70% 100%, 0 100%);
-    transition: transform .15s;
-  }
-  .swatch:hover { transform: scale(1.25); }
-
-  header {
-    padding: 12px 20px;
-    border-bottom: 2px solid var(--c);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: linear-gradient(90deg, var(--c-soft), transparent);
-    position: relative;
-  }
-  header::after {
-    content: '';
-    position: absolute;
-    bottom: -2px; left: 0;
-    width: 120px; height: 2px;
-    background: var(--danger);
-  }
-  header h1 { font-size: 17px; letter-spacing: 3px; }
-  #status { font-size: 11px; color: var(--c-dim); letter-spacing: 2px; }
-  #status.on { color: var(--c); }
-  .head-right { display: flex; gap: 18px; align-items: center; }
-
-  #main { display: flex; flex: 1; overflow: hidden; }
-
-  #sidebar {
-    width: 210px;
-    border-right: 1px solid var(--c-dim);
-    padding: 14px;
-    font-size: 13px;
-    background: var(--c-soft);
-  }
-  #sidebar h2 { font-size: 12px; letter-spacing: 2px; margin-bottom: 10px; border-bottom: 1px dashed var(--c-dim); padding-bottom: 6px; }
-  #users li { list-style: none; padding: 4px 0; }
-  #users li::before { content: '▸ '; color: var(--danger); }
-
-  #chat-wrap { flex: 1; display: flex; flex-direction: column; }
-
-  #chat {
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px 20px;
-    font-size: 14px;
-    line-height: 1.7;
-  }
-  #chat::-webkit-scrollbar { width: 8px; }
-  #chat::-webkit-scrollbar-thumb { background: var(--c-dim); }
-  .msg .nick { font-weight: bold; }
-  .msg .time { color: var(--c-dim); font-size: 11px; }
-  .sys { color: var(--c-dim); font-style: italic; }
-  .msg {
-    animation: msg-in .25s ease-out;
-  }
-  @keyframes msg-in {
-    from { opacity: 0; transform: translateX(-8px); }
-    to { opacity: 1; transform: none; }
-  }
-
-  #input-bar {
-    display: flex;
-    border-top: 2px solid var(--c);
-    background: linear-gradient(90deg, var(--c-soft), transparent);
-  }
-  #prompt { padding: 14px 8px 14px 20px; font-weight: bold; color: var(--danger); }
-  #msg {
-    flex: 1;
-    background: transparent;
-    border: none;
-    outline: none;
-    color: var(--c);
-    font-family: inherit;
-    font-size: 15px;
-    padding: 14px 20px 14px 6px;
-    caret-color: var(--danger);
-  }
-  #msg::placeholder { color: var(--c-dim); }
-  button {
-    background: var(--c);
-    color: #000;
-    border: none;
-    font-family: inherit;
-    font-weight: bold;
-    letter-spacing: 2px;
-    padding: 0 26px;
-    cursor: pointer;
-    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
-    transition: filter .15s;
-  }
-  button:hover { filter: brightness(1.25); }
-
-  /* ===== login ===== */
-  #login {
-    position: fixed;
-    inset: 0;
-    background: rgba(5,5,5,.96);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-    gap: 20px;
-  }
-  #login .card {
-    border: 1px solid var(--c);
-    padding: 40px 50px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 18px;
-    background: var(--panel);
-    position: relative;
-  }
-  #login .card::before {
-    content: 'NETRUNNER_OS v77.13 // SECURE_CHANNEL';
-    position: absolute;
-    top: -11px; left: 18px;
-    background: var(--panel);
-    padding: 0 8px;
-    font-size: 10px;
-    letter-spacing: 2px;
-    color: var(--c-dim);
-  }
-  #login h1 { font-size: 30px; letter-spacing: 8px; }
-  #login .sub { color: var(--danger); font-size: 11px; letter-spacing: 4px; }
-  #nick {
-    background: transparent;
-    border: 1px solid var(--c);
-    color: var(--c);
-    font-family: inherit;
-    font-size: 16px;
-    text-align: center;
-    padding: 12px 16px;
-    outline: none;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
-    width: 280px;
-  }
-  #nick:focus { background: var(--c-soft); box-shadow: 0 0 20px var(--c-dim); }
-  #nick::placeholder { color: var(--c-dim); }
-  #login button { padding: 12px 34px; font-size: 14px; }
-  #login .footer { font-size: 10px; color: var(--c-dim); letter-spacing: 3px; }
-
-  #matrix-rain { position: fixed; inset: 0; z-index: -1; opacity: .12; }
+:root{
+  --c:#fcee0a;--c-dim:rgba(252,238,10,.45);--c-soft:rgba(252,238,10,.08);--bg:#0a0a0a;--panel:rgba(15,15,10,.92);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--c);font-family:'Courier New',monospace;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px);pointer-events:none;z-index:99}
+.cyber-cut{clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px))}
+header{padding:12px 20px;border-bottom:2px solid var(--c);display:flex;justify-content:space-between;align-items:center;background:linear-gradient(90deg,var(--c-soft),transparent);position:relative}
+header::after{content:'';position:absolute;bottom:-2px;left:0;width:120px;height:2px;background:red}
+header h1{font-size:17px;letter-spacing:3px}
+#status{font-size:11px;color:var(--c-dim);letter-spacing:2px}
+#status.on{color:var(--c)}
+.head-right{display:flex;gap:18px;align-items:center}
+#main{display:flex;flex:1;overflow:hidden}
+#sidebar{width:210px;border-right:1px solid var(--c-dim);padding:14px;background:var(--c-soft)}
+#sidebar h2{font-size:12px;letter-spacing:2px;margin-bottom:10px;border-bottom:1px dashed var(--c-dim);padding-bottom:6px}
+#users li{list-style:none;padding:4px 0}
+#users li::before{content:'▸ ';color:red}
+#chat-wrap{flex:1;display:flex;flex-direction:column}
+#chat{flex:1;overflow-y:auto;padding:16px 20px}
+#chat::-webkit-scrollbar{width:8px}
+#chat::-webkit-scrollbar-thumb{background:var(--c-dim)}
+.msg{padding:8px 12px;border-left:3px solid var(--c-dim);margin-bottom:8px;font-size:14px;line-height:1.5;animation:msg-in .25s ease-out}
+.msg .nick{font-weight:bold;font-size:13px}
+.msg .time{color:var(--c-dim);font-size:11px}
+.sys{color:var(--c-dim);font-style:italic;font-size:12px;padding:4px 0}
+@keyframes msg-in{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
+#input-bar{display:flex;border-top:2px solid var(--c);background:linear-gradient(90deg,var(--c-soft),transparent)}
+#prompt{padding:14px 8px 14px 20px;font-weight:bold;color:var(--c-dim)}
+#msg{flex:1;background:transparent;border:none;outline:none;color:var(--c);font-family:inherit;font-size:15px;padding:14px 20px 14px 6px;caret-color:var(--danger)}
+#msg::placeholder{color:var(--c-dim)}
+button{background:var(--c);color:#000;border:none;font-family:inherit;font-weight:bold;letter-spacing:2px;padding:0 26px;cursor:pointer;clip-path:polygon(0 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%);transition:filter .15s}
+button:hover{filter:brightness(1.25)}
+button.tool{background:transparent;color:var(--c);border:1px solid var(--c-dim);padding:0 12px;font-size:15px;clip-path:none}
+button.tool:hover{border-color:var(--c);filter:none}
+button.tool.rec{background:red;border-color:red;color:#000}
+.msg img{max-width:320px;max-height:240px;display:block;margin-top:4px;border:1px solid var(--c-dim)}
+.msg audio{display:block;margin-top:4px;height:32px}
+.msg a{color:#ff003c}
+#login{position:fixed;inset:0;background:rgba(5,5,5,.96);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;gap:20px}
+#login .card{border:1px solid var(--c);padding:40px 50px;display:flex;flex-direction:column;align-items:center;gap:18px;background:var(--panel);position:relative;clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px))}
+#login .card::before{content:'NETRUNNER_OS v77.13 // SECURE_CHANNEL';position:absolute;top:-11px;left:18px;background:var(--panel);padding:0 8px;font-size:10px;letter-spacing:2px;color:var(--c-dim)}
+#login h1{font-size:30px;letter-spacing:8px}
+#login .sub{color:var(--c-dim);font-size:11px;letter-spacing:4px}
+#nick{background:transparent;border:1px solid var(--c);color:var(--c);font-family:inherit;font-size:16px;text-align:center;padding:12px 16px;outline:none;letter-spacing:3px;text-transform:uppercase;clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px));width:280px}
+#nick::placeholder{color:var(--c-dim)}
+#login button{padding:12px 34px;font-size:14px}
+#themes{display:flex;gap:8px;align-items:center;font-size:10px;letter-spacing:2px;color:var(--c-dim)}
+.swatch{width:18px;height:18px;border:1px solid rgba(255,255,255,.25);cursor:pointer;clip-path:polygon(0 0,100% 0,100% 70%,70% 100%,0 100%);transition:transform .15s}
+.swatch:hover{transform:scale(1.25)}
+#matrix{position:fixed;inset:0;z-index:-1;opacity:.12}
 </style>
 </head>
-<body onload="boot()">
-
-<canvas id="matrix-rain"></canvas>
+<body>
+<canvas id="matrix"></canvas>
 
 <div id="login" class="cyber-cut">
   <div class="card cyber-cut">
-    <h1 class="glitch" data-text="NETRUNNER_">NETRUNNER_</h1>
+    <h1>NETRUNNER_</h1>
     <div class="sub">CANAL SEGURO // ACESSO RESTRITO</div>
     <input id="nick" maxlength="16" placeholder="DIGITE SEU CODINOME" autocomplete="off">
     <button onclick="join()">CONECTAR &gt;&gt;</button>
-
     <div id="themes">
       <span>TEMA:</span>
       <div class="swatch" style="background:#fcee0a" onclick="setTheme('#fcee0a','CYBER')" title="CYBERPUNK 2077"></div>
@@ -257,16 +80,9 @@
 </div>
 
 <header>
-  <h1 class="glow">▓▒░ NETRUNNER // CHAT PRIVADO ░▒▓</h1>
+  <h1>▓▒░ NETRUNNER // CHAT PRIVADO ░▒▓</h1>
   <div class="head-right">
-    <div class="theme-bar">
-      <div class="swatch" style="background:#fcee0a" onclick="setTheme('#fcee0a','CYBER')" title="CYBERPUNK 2077"></div>
-      <div class="swatch" style="background:#00ff41" onclick="setTheme('#00ff41','MATRIX')" title="MATRIX"></div>
-      <div class="swatch" style="background:#00f0ff" onclick="setTheme('#00f0ff','ICE')" title="ICE"></div>
-      <div class="swatch" style="background:#ff003c" onclick="setTheme('#ff003c','MANTIS')" title="MANTIS"></div>
-      <div class="swatch" style="background:#b537f2" onclick="setTheme('#b537f2','GLITCH')" title="GLITCH"></div>
-    </div>
-    <button id="rename" class="mini-btn" onclick="trocarNome()">✎ CODINOME</button>
+    <button id="rename" class="tool" onclick="trocarNome()">✎ CODINOME</button>
     <span id="status">OFFLINE</span>
   </div>
 </header>
@@ -279,162 +95,213 @@
   <div id="chat-wrap">
     <div id="chat"></div>
     <div id="input-bar">
-      <span id="prompt" class="glow">&gt;&gt;</span>
-      <input id="msg" placeholder="transmitir mensagem..." autocomplete="off">
+      <span id="prompt">&gt;&gt;</span>
+      <input id="msg" placeholder="transmitir mensagem... (/ajuda para comandos)" autocomplete="off">
+      <button id="btn-img" class="tool" title="Enviar imagem" onclick="document.getElementById('file-img').click()">📷</button>
+      <input type="file" id="file-img" accept="image/*" style="display:none" onchange="sendImage(this)">
+      <button id="btn-audio" class="tool" title="Clique para gravar e clique de novo para parar" onclick="toggleRec()">🎤</button>
+      <button id="btn-cast" class="tool" title="Transmitir tela" onclick="toggleCast()">🖥</button>
       <button onclick="send()">ENVIAR</button>
     </div>
   </div>
 </div>
 
 <script>
-const chat = document.getElementById('chat');
-const msgInput = document.getElementById('msg');
-const statusEl = document.getElementById('status');
-let myNick, since = 0, pollTimer;
-const seen = new Set(); // deduplica mensagens entre instâncias serverless
+const chat=document.getElementById('chat');
+const msgInput=document.getElementById('msg');
+const statusEl=document.getElementById('status');
+let myNick,since=0,pollTimer,recorder=null,castStream=null;
+const seen=new Set();
 
-async function api(path, body) {
-  const opts = body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {};
-  return (await fetch(path, opts)).json();
+async function api(path,body){
+  const opts=body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{};
+  return(await fetch(path,opts)).json();
 }
 
-/* ===== temas ===== */
-function setTheme(hex, name) {
-  const r = document.documentElement.style;
-  r.setProperty('--c', hex);
-  r.setProperty('--c-dim', hexToRgba(hex, .45));
-  r.setProperty('--c-soft', hexToRgba(hex, .08));
-  localStorage.setItem('netrunner_theme', JSON.stringify({ hex, name }));
-  rainColor = hex;
+function setTheme(hex){
+  const root=document.documentElement;
+  root.style.setProperty('--c',hex);
+  root.style.setProperty('--c-dim',hexToRgba(hex,.45));
+  root.style.setProperty('--c-soft',hexToRgba(hex,.08));
+  localStorage.setItem('netrunner_theme',hex);
 }
-function hexToRgba(hex, a) {
-  const n = parseInt(hex.slice(1), 16);
-  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
-}
+function hexToRgba(hex,a){const n=parseInt(hex.slice(1),16);return`rgba(${n>>16},${(n>>8)&255},${n&255},${a})`}
 
-function boot() {
-  const savedTheme = JSON.parse(localStorage.getItem('netrunner_theme') || 'null');
-  if (savedTheme) setTheme(savedTheme.hex, savedTheme.name);
-  const saved = localStorage.getItem('netrunner_nick');
-  if (saved) document.getElementById('nick').value = saved;
-  document.getElementById('nick').addEventListener('keydown', e => { if (e.key === 'Enter') join(); });
-  document.getElementById('msg').addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+function boot(){
+  const t=localStorage.getItem('netrunner_theme');
+  if(t)setTheme(t);
+  const saved=localStorage.getItem('netrunner_nick');
+  if(saved)document.getElementById('nick').value=saved;
+  document.getElementById('nick').addEventListener('keydown',e=>{if(e.key==='Enter')join()});
+  document.getElementById('msg').addEventListener('keydown',e=>{if(e.key==='Enter')send()});
   rain();
 }
 
-async function join() {
-  const nick = document.getElementById('nick').value.trim();
-  if (!nick) { document.getElementById('nick').placeholder = 'CODINOME OBRIGATÓRIO!'; return; }
-  localStorage.setItem('netrunner_nick', nick);
-  myNick = nick.toUpperCase();
-  try {
-    const r = await api('/api/join', { nick: myNick });
-    since = r.total || 0;
-    document.getElementById('login').style.display = 'none';
-    statusEl.textContent = 'CONECTADO';
+async function join(){
+  const nick=document.getElementById('nick').value.trim();
+  if(!nick){document.getElementById('nick').placeholder='CODINOME OBRIGATÓRIO!';return;}
+  localStorage.setItem('netrunner_nick',nick);
+  myNick=nick.toUpperCase();
+  try{
+    const r=await api('/api/join',{nick:myNick});
+    since=r.total||0;
+    document.getElementById('login').style.display='none';
+    statusEl.textContent='CONECTADO';
     statusEl.classList.add('on');
-    sysMsg('CONEXÃO ESTABELECIDA. BEM-VINDO À REDE, ' + myNick + '.');
+    sysMsg('CONEXÃO ESTABELECIDA. BEM-VINDO À REDE, '+myNick+'.');
     msgInput.focus();
     poll();
-    pollTimer = setInterval(poll, 1500);
-  } catch { statusEl.textContent = 'ERRO DE CONEXÃO'; }
+    pollTimer=setInterval(poll,1500);
+  }catch{statusEl.textContent='ERRO DE CONEXÃO'}
 }
 
-function trocarNome() {
+function trocarNome(){
   clearInterval(pollTimer);
-  myNick = null;
+  myNick=null;
   localStorage.removeItem('netrunner_nick');
-  document.getElementById('nick').value = '';
-  document.getElementById('nick').placeholder = 'DIGITE SEU CODINOME';
-  document.getElementById('login').style.display = 'flex';
-  statusEl.textContent = 'OFFLINE';
+  document.getElementById('nick').value='';
+  document.getElementById('nick').placeholder='DIGITE SEU CODINOME';
+  document.getElementById('login').style.display='flex';
+  statusEl.textContent='OFFLINE';
   statusEl.classList.remove('on');
   document.getElementById('nick').focus();
 }
 
-async function poll() {
-  try {
-    const r = await api(`/api/poll?since=${since}&nick=${encodeURIComponent(myNick)}`);
-    since = r.total;
-    r.messages.forEach(m => {
-      if (m.id && seen.has(m.id)) return;
-      if (m.id) seen.add(m.id);
-      m.type === 'chat' ? render(m) : sysMsg(m.text);
+async function poll(){
+  try{
+    const r=await api(`/api/poll?since=${since}&nick=${encodeURIComponent(myNick||'')}`);
+    if(r.total<since)since=0;
+    since=r.total;
+    r.messages.forEach(m=>{
+      if(m.id&&seen.has(m.id))return;
+      if(m.id)seen.add(m.id);
+      if(m.kind==='rtc'){handleRTC(m);return;}
+      m.type==='chat'?render(m):sysMsg(m.text);
     });
     renderUsers(r.users);
-  } catch { statusEl.textContent = 'INSTÁVEL...'; statusEl.classList.remove('on'); }
+  }catch{statusEl.textContent='INSTÁVEL...'}
 }
 
-function render(m) {
-  const div = document.createElement('div');
-  div.className = 'msg';
-  const who = m.nick === myNick ? 'VOCÊ' : m.nick;
-  div.innerHTML = `<span class="time">[${m.time}]</span> <span class="nick glow">${who}@net:~$</span> ${escapeHtml(m.text)}`;
-  chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
+function render(m){
+  const div=document.createElement('div');
+  div.className='msg';
+  const who=m.nick===myNick?'VOCÊ':m.nick;
+  const head=`<span class="time">[${m.time}]</span> <span class="nick">${who}@net:~$</span> `;
+  if(!m.kind||m.kind==='chat')div.innerHTML=head+linkify(escapeHtml(m.text));
+  else if(m.kind==='image'){div.innerHTML=head;const img=document.createElement('img');img.src=m.text;div.appendChild(img)}
+  else if(m.kind==='audio'){div.innerHTML=head;const a=document.createElement('audio');a.controls=true;a.src=m.text;div.appendChild(a)}
+  else div.innerHTML=head+escapeHtml(m.text);
+  chat.appendChild(div);chat.scrollTop=chat.scrollHeight;
 }
 
-function sysMsg(text) {
-  const div = document.createElement('div');
-  div.className = 'sys';
-  div.textContent = text;
-  chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
-}
+function linkify(text){return text.replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>')}
+function sysMsg(text){const div=document.createElement('div');div.className='sys';div.textContent=text;chat.appendChild(div);chat.scrollTop=chat.scrollHeight}
+function renderUsers(users){document.getElementById('users').innerHTML=users.map(u=>`<li>${escapeHtml(u)}</li>`).join('')}
 
-function renderUsers(users) {
-  document.getElementById('users').innerHTML = users.map(u => `<li>${escapeHtml(u)}</li>`).join('');
-}
-
-async function send() {
-  const text = msgInput.value.trim();
-  if (!text || !myNick) return;
-  msgInput.value = '';
-  if (text.toLowerCase().startsWith('/nick ')) { mudarNick(text.slice(6)); return; }
-  if (text === '/help' || text === '/ajuda') { sysMsg('COMANDOS: /nick NOVO_NOME — trocar codinome | /limpar — limpar tela'); return; }
-  if (text === '/limpar') { chat.innerHTML = ''; return; }
-  await api('/api/send', { nick: myNick, text });
+async function send(){
+  const text=msgInput.value.trim();
+  if(!text||!myNick)return;
+  msgInput.value='';
+  if(text.toLowerCase().startsWith('/nick ')){mudarNick(text.slice(6));return;}
+  if(text==='/help'||text==='/ajuda'){sysMsg('COMANDOS: /nick NOVO_NOME | /limpar — limpar tela');return;}
+  if(text==='/limpar'){chat.innerHTML='';since=(await api(`/api/poll?since=0&nick=${encodeURIComponent(myNick)}`)).total;return;}
+  await api('/api/send',{nick:myNick,text});
   poll();
 }
 
-async function mudarNick(novo) {
-  novo = novo.trim().slice(0, 16).toUpperCase();
-  if (!novo) { sysMsg('USO: /nick SEU_NOVO_CODINOME'); return; }
-  const antigo = myNick;
-  myNick = novo;
-  localStorage.setItem('netrunner_nick', novo);
-  const r = await api('/api/join', { nick: novo });
-  since = r.total; // não repetir histórico
+async function mudarNick(novo){
+  novo=novo.trim().slice(0,16).toUpperCase();
+  if(!novo){sysMsg('USO: /nick SEU_NOVO_CODINOME');return;}
+  const antigo=myNick;
+  myNick=novo;localStorage.setItem('netrunner_nick',novo);
+  await api('/api/join',{nick:novo});
   sysMsg(`CODINOME ALTERADO: ${antigo} >> ${novo}`);
 }
 
-function escapeHtml(s) {
-  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function sendImage(input){
+  const file=input.files[0];if(!file)return;
+  const b64=await new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.readAsDataURL(file)});
+  await api('/api/send',{nick:myNick,text:b64,kind:'image'});
+  poll();
 }
 
-/* chuva matrix de fundo (cor segue o tema) */
-let rainColor = '#fcee0a';
-function rain() {
-  const c = document.getElementById('matrix-rain');
-  const ctx = c.getContext('2d');
-  function size() { c.width = innerWidth; c.height = innerHeight; }
-  size();
-  const chars = 'アイウエオカキクケコ01<>/#$%&*ﾊﾋﾌﾍﾎ';
-  let cols, drops;
-  function reset() { cols = Math.floor(c.width / 16); drops = Array(cols).fill(1); }
-  reset(); onresize = () => { size(); reset(); };
-  setInterval(() => {
-    ctx.fillStyle = 'rgba(0,0,0,0.08)';
-    ctx.fillRect(0, 0, c.width, c.height);
-    ctx.fillStyle = rainColor;
-    ctx.font = '14px monospace';
-    drops.forEach((y, i) => {
-      ctx.fillText(chars[Math.random() * chars.length | 0], i * 16, y * 16);
-      if (y * 16 > c.height && Math.random() > .975) drops[i] = 0;
+async function toggleRec(){
+  if(recorder&&recorder.state==='recording'){recorder.stop();recorder=null;document.getElementById('btn-audio').classList.remove('rec');return;}
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    recorder=new MediaRecorder(stream);
+    recorder.ondataavailable=e=>chunks.push(e.data);
+    recorder.onstop=async()=>{
+      const blob=new Blob(chunks,{type:'audio/webm'});
+      const fr=new FileReader();
+      fr.onload=async()=>{await api('/api/send',{nick:myNick,text:fr.result,kind:'audio'});poll();};
+      fr.readAsDataURL(blob);
+      document.getElementById('btn-audio').classList.remove('rec');
+    };
+    const chunks=[];
+    recorder.start();
+    document.getElementById('btn-audio').classList.add('rec');
+  }catch{sysMsg('ERRO: MICROFONE BLOQUEADO OU INDISPONÍVEL')}
+}
+
+/* ===== TRANSMISSÃO DE TELA ===== */
+async function toggleCast(){
+  if(castStream){castStream.getTracks().forEach(t=>t.stop());castStream=null;document.getElementById('btn-cast').classList.remove('rec');sysMsg('TRANSMISSÃO PARADA.');return;}
+  try{
+    castStream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:false});
+    document.getElementById('btn-cast').classList.add('rec');
+    sysMsg('TRANSMISSÃO INICIADA. ABRINDO JANELA...');
+    castStream.getTracks().forEach(t=>{t.onended=()=>{castStream=null;cancelCast()}});
+    /* Para funcionar com WebRTC de verdade em serverless precisa de signaling por mensagens.
+       Simples: enviar como imagem + atualizar uma janela popup */
+    const canvas=document.createElement('canvas');
+    const ctx=canvas.getContext('2d');
+    const video=document.createElement('video');
+    video.srcObject=castStream;video.play();
+    const interval=setInterval(async()=>{
+      if(!castStream)clearInterval(interval);
+      canvas.width=video.videoWidth/2;canvas.height=video.videoHeight/2;
+      ctx.drawImage(video,0,0,canvas.width,canvas.height);
+      const dataUrl=canvas.toDataURL('image/jpeg',0.5);
+      const pop=window.open('','_blank','width=640,height=400,top=50,left=50');
+      if(pop){
+        pop.document.write('<html><body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center"><img src="'+dataUrl+'" style="max-width:100%;max-height:100%"></body></html>');
+        pop.document.close();
+      }
+      await api('/api/send',{nick:myNick,text:dataUrl,kind:'image'});
+      poll();
+    },1000);
+  }catch{sysMsg('ERRO: TRANSMISSÃO NÃO PERMITIDA PELO DISPOSITIVO')}
+}
+
+function cancelCast(){
+  document.getElementById('btn-cast').classList.remove('rec');
+  castStream=null;
+}
+
+function rain(){
+  const c=document.getElementById('matrix');
+  const ctx=c.getContext('2d');
+  const size=()=>{c.width=innerWidth;c.height=innerHeight};
+  size();onresize=size;
+  const chars='アイウエオカキクケコ01<>/#$%&*ﾊﾋﾌﾍﾎ';
+  let cols,drops;
+  const reset=()=>{cols=Math.floor(c.width/16);drops=Array(cols).fill(1)};
+  reset();onresize=()=>{size();reset()};
+  setInterval(()=>{
+    ctx.fillStyle='rgba(0,0,0,0.08)';
+    ctx.fillRect(0,0,c.width,c.height);
+    ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--c');
+    ctx.font='14px monospace';
+    drops.forEach((y,i)=>{
+      ctx.fillText(chars[Math.random()*chars.length|0],i*16,y*16);
+      if(y*16>c.height&&Math.random()>.975)drops[i]=0;
       drops[i]++;
     });
-  }, 66);
+  },66);
 }
+
+function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 </script>
 </body>
 </html>
