@@ -9,6 +9,7 @@ const store = global.__store || (global.__store = { messages: [], users: {} });
 
 function now() { return new Date().toLocaleTimeString('pt-BR'); }
 function pushMsg(m) {
+  m.id = Math.random().toString(36).slice(2) + Date.now().toString(36);
   store.messages.push(m);
   if (store.messages.length > 100) store.messages.shift();
 }

@@ -4,57 +4,124 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NETRUNNER // CHAT PRIVADO</title>
-<!-- v3-deploy-marker -->
+<!-- v4-cyberpunk2077 -->
 <style>
+  :root {
+    --c: #fcee0a;            /* primária (padrão: amarelo 2077) */
+    --c-dim: rgba(252,238,10,.45);
+    --c-soft: rgba(252,238,10,.08);
+    --bg: #0a0a0a;
+    --panel: rgba(15,15,10,.92);
+    --danger: #ff003c;
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    background: #000;
-    color: #00ff41;
+    background: var(--bg);
+    color: var(--c);
     font-family: 'Courier New', monospace;
     height: 100vh;
     overflow: hidden;
     display: flex;
     flex-direction: column;
   }
-  /* scanlines */
+  /* scanlines CRT */
   body::after {
     content: '';
     position: fixed;
     inset: 0;
-    background: repeating-linear-gradient(0deg, rgba(0,0,0,.25) 0 1px, transparent 1px 3px);
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,.22) 0 1px, transparent 1px 3px);
     pointer-events: none;
     z-index: 99;
   }
-  /* glow flicker */
-  @keyframes flicker {
-    0%,100% { opacity: 1; } 3% { opacity: .8; } 6% { opacity: 1; } 54% { opacity: .92; } 57% { opacity: 1; }
+  .glow { text-shadow: 0 0 6px var(--c), 0 0 16px var(--c-dim); }
+
+  /* ===== efeito glitch estilo 2077 ===== */
+  .glitch { position: relative; }
+  .glitch::before, .glitch::after {
+    content: attr(data-text);
+    position: absolute;
+    left: 0; top: 0;
+    width: 100%;
+    overflow: hidden;
   }
-  .glow { text-shadow: 0 0 5px #00ff41, 0 0 12px rgba(0,255,65,.6); animation: flicker 4s infinite; }
+  .glitch::before { color: var(--danger); clip-path: inset(20% 0 60% 0); animation: glitch-a 2.5s infinite steps(2); opacity: .8; }
+  .glitch::after { color: #00f0ff; clip-path: inset(60% 0 15% 0); animation: glitch-b 3.1s infinite steps(2); opacity: .8; }
+  @keyframes glitch-a {
+    0%,92% { transform: none; opacity: 0; }
+    93% { transform: translate(-3px, 1px); opacity: .8; }
+    96% { transform: translate(3px, -1px); opacity: .8; }
+    100% { transform: none; opacity: 0; }
+  }
+  @keyframes glitch-b {
+    0%,88% { transform: none; opacity: 0; }
+    89% { transform: translate(3px, 1px); opacity: .8; }
+    94% { transform: translate(-3px, 0); opacity: .8; }
+    100% { transform: none; opacity: 0; }
+  }
+
+  /* ===== cantos cortados estilo CP2077 ===== */
+  .cyber-cut {
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  }
+
+  /* ===== seletor de tema ===== */
+  #themes, .theme-bar { display: flex; gap: 8px; align-items: center; }
+  .mini-btn {
+    background: transparent;
+    color: var(--c);
+    border: 1px solid var(--c);
+    font-family: inherit;
+    font-size: 10px;
+    letter-spacing: 2px;
+    padding: 5px 12px;
+    cursor: pointer;
+    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+    transition: all .15s;
+  }
+  .mini-btn:hover { background: var(--c); color: #000; }
+  #themes span { font-size: 10px; letter-spacing: 2px; color: var(--c-dim); }
+  .swatch {
+    width: 18px; height: 18px;
+    border: 1px solid rgba(255,255,255,.25);
+    cursor: pointer;
+    clip-path: polygon(0 0, 100% 0, 100% 70%, 70% 100%, 0 100%);
+    transition: transform .15s;
+  }
+  .swatch:hover { transform: scale(1.25); }
 
   header {
     padding: 12px 20px;
-    border-bottom: 1px solid #00ff41;
+    border-bottom: 2px solid var(--c);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(0,255,65,.04);
+    background: linear-gradient(90deg, var(--c-soft), transparent);
+    position: relative;
   }
-  header h1 { font-size: 18px; letter-spacing: 4px; }
-  #status { font-size: 12px; color: #008f24; }
-  #status.on { color: #00ff41; }
+  header::after {
+    content: '';
+    position: absolute;
+    bottom: -2px; left: 0;
+    width: 120px; height: 2px;
+    background: var(--danger);
+  }
+  header h1 { font-size: 17px; letter-spacing: 3px; }
+  #status { font-size: 11px; color: var(--c-dim); letter-spacing: 2px; }
+  #status.on { color: var(--c); }
+  .head-right { display: flex; gap: 18px; align-items: center; }
 
   #main { display: flex; flex: 1; overflow: hidden; }
 
   #sidebar {
-    width: 200px;
-    border-right: 1px solid #00ff41;
+    width: 210px;
+    border-right: 1px solid var(--c-dim);
     padding: 14px;
     font-size: 13px;
-    background: rgba(0,255,65,.03);
+    background: var(--c-soft);
   }
-  #sidebar h2 { font-size: 13px; letter-spacing: 2px; margin-bottom: 10px; border-bottom: 1px dashed #008f24; padding-bottom: 6px; }
+  #sidebar h2 { font-size: 12px; letter-spacing: 2px; margin-bottom: 10px; border-bottom: 1px dashed var(--c-dim); padding-bottom: 6px; }
   #users li { list-style: none; padding: 4px 0; }
-  #users li::before { content: '> '; }
+  #users li::before { content: '▸ '; color: var(--danger); }
 
   #chat-wrap { flex: 1; display: flex; flex-direction: column; }
 
@@ -63,90 +130,145 @@
     overflow-y: auto;
     padding: 16px 20px;
     font-size: 14px;
-    line-height: 1.6;
+    line-height: 1.7;
   }
   #chat::-webkit-scrollbar { width: 8px; }
-  #chat::-webkit-scrollbar-thumb { background: #008f24; }
-  .msg .nick { color: #7dffab; }
-  .msg .time { color: #008f24; font-size: 11px; }
-  .sys { color: #008f24; font-style: italic; }
+  #chat::-webkit-scrollbar-thumb { background: var(--c-dim); }
+  .msg .nick { font-weight: bold; }
+  .msg .time { color: var(--c-dim); font-size: 11px; }
+  .sys { color: var(--c-dim); font-style: italic; }
+  .msg {
+    animation: msg-in .25s ease-out;
+  }
+  @keyframes msg-in {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: none; }
+  }
 
   #input-bar {
     display: flex;
-    border-top: 1px solid #00ff41;
-    background: rgba(0,255,65,.05);
+    border-top: 2px solid var(--c);
+    background: linear-gradient(90deg, var(--c-soft), transparent);
   }
-  #prompt { padding: 14px 8px 14px 20px; font-weight: bold; }
+  #prompt { padding: 14px 8px 14px 20px; font-weight: bold; color: var(--danger); }
   #msg {
     flex: 1;
     background: transparent;
     border: none;
     outline: none;
-    color: #00ff41;
+    color: var(--c);
     font-family: inherit;
     font-size: 15px;
-    padding: 14px 20px 14px 4px;
-    caret-color: #00ff41;
+    padding: 14px 20px 14px 6px;
+    caret-color: var(--danger);
   }
+  #msg::placeholder { color: var(--c-dim); }
   button {
-    background: #003b0f;
-    color: #00ff41;
-    border: 1px solid #00ff41;
+    background: var(--c);
+    color: #000;
+    border: none;
     font-family: inherit;
+    font-weight: bold;
     letter-spacing: 2px;
-    padding: 0 24px;
+    padding: 0 26px;
     cursor: pointer;
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+    transition: filter .15s;
   }
-  button:hover { background: #00ff41; color: #000; }
+  button:hover { filter: brightness(1.25); }
 
-  /* login overlay */
+  /* ===== login ===== */
   #login {
     position: fixed;
     inset: 0;
-    background: #000;
+    background: rgba(5,5,5,.96);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     z-index: 100;
-    gap: 18px;
+    gap: 20px;
   }
-  #login h1 { font-size: 26px; letter-spacing: 6px; }
-  #login .sub { color: #008f24; font-size: 12px; letter-spacing: 3px; }
+  #login .card {
+    border: 1px solid var(--c);
+    padding: 40px 50px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    background: var(--panel);
+    position: relative;
+  }
+  #login .card::before {
+    content: 'NETRUNNER_OS v77.13 // SECURE_CHANNEL';
+    position: absolute;
+    top: -11px; left: 18px;
+    background: var(--panel);
+    padding: 0 8px;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--c-dim);
+  }
+  #login h1 { font-size: 30px; letter-spacing: 8px; }
+  #login .sub { color: var(--danger); font-size: 11px; letter-spacing: 4px; }
   #nick {
     background: transparent;
-    border: 1px solid #00ff41;
-    color: #00ff41;
+    border: 1px solid var(--c);
+    color: var(--c);
     font-family: inherit;
     font-size: 16px;
     text-align: center;
-    padding: 10px 16px;
+    padding: 12px 16px;
     outline: none;
-    letter-spacing: 2px;
+    letter-spacing: 3px;
     text-transform: uppercase;
+    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+    width: 280px;
   }
-  #login button { padding: 10px 30px; }
-  .cursor::after { content: '█'; animation: blink 0.8s step-start infinite; }
-  @keyframes blink { 50% { opacity: 0; } }
-  #matrix-rain {
-    position: fixed; inset: 0; z-index: -1; opacity: .15;
-  }
+  #nick:focus { background: var(--c-soft); box-shadow: 0 0 20px var(--c-dim); }
+  #nick::placeholder { color: var(--c-dim); }
+  #login button { padding: 12px 34px; font-size: 14px; }
+  #login .footer { font-size: 10px; color: var(--c-dim); letter-spacing: 3px; }
+
+  #matrix-rain { position: fixed; inset: 0; z-index: -1; opacity: .12; }
 </style>
 </head>
 <body onload="boot()">
 
 <canvas id="matrix-rain"></canvas>
 
-<div id="login">
-  <h1 class="glow">NETRUNNER_</h1>
-  <div class="sub">CANAL SEGURO // ACESSO RESTRITO</div>
-  <input id="nick" maxlength="16" placeholder="DIGITE SEU CODINOME" autocomplete="off">
-  <button onclick="join()">CONECTAR &gt;&gt;</button>
+<div id="login" class="cyber-cut">
+  <div class="card cyber-cut">
+    <h1 class="glitch" data-text="NETRUNNER_">NETRUNNER_</h1>
+    <div class="sub">CANAL SEGURO // ACESSO RESTRITO</div>
+    <input id="nick" maxlength="16" placeholder="DIGITE SEU CODINOME" autocomplete="off">
+    <button onclick="join()">CONECTAR &gt;&gt;</button>
+
+    <div id="themes">
+      <span>TEMA:</span>
+      <div class="swatch" style="background:#fcee0a" onclick="setTheme('#fcee0a','CYBER')" title="CYBERPUNK 2077"></div>
+      <div class="swatch" style="background:#00ff41" onclick="setTheme('#00ff41','MATRIX')" title="MATRIX"></div>
+      <div class="swatch" style="background:#00f0ff" onclick="setTheme('#00f0ff','ICE')" title="ICE"></div>
+      <div class="swatch" style="background:#ff003c" onclick="setTheme('#ff003c','MANTIS')" title="MANTIS"></div>
+      <div class="swatch" style="background:#b537f2" onclick="setTheme('#b537f2','GLITCH')" title="GLITCH"></div>
+    </div>
+  </div>
+  <div class="footer">NETRUNNER PROTOCOL © 2077 NIGHT CITY</div>
 </div>
 
 <header>
   <h1 class="glow">▓▒░ NETRUNNER // CHAT PRIVADO ░▒▓</h1>
-  <span id="status">OFFLINE</span>
+  <div class="head-right">
+    <div class="theme-bar">
+      <div class="swatch" style="background:#fcee0a" onclick="setTheme('#fcee0a','CYBER')" title="CYBERPUNK 2077"></div>
+      <div class="swatch" style="background:#00ff41" onclick="setTheme('#00ff41','MATRIX')" title="MATRIX"></div>
+      <div class="swatch" style="background:#00f0ff" onclick="setTheme('#00f0ff','ICE')" title="ICE"></div>
+      <div class="swatch" style="background:#ff003c" onclick="setTheme('#ff003c','MANTIS')" title="MANTIS"></div>
+      <div class="swatch" style="background:#b537f2" onclick="setTheme('#b537f2','GLITCH')" title="GLITCH"></div>
+    </div>
+    <button id="rename" class="mini-btn" onclick="trocarNome()">✎ CODINOME</button>
+    <span id="status">OFFLINE</span>
+  </div>
 </header>
 
 <div id="main">
@@ -157,7 +279,7 @@
   <div id="chat-wrap">
     <div id="chat"></div>
     <div id="input-bar">
-      <span id="prompt" class="glow">root&gt;_</span>
+      <span id="prompt" class="glow">&gt;&gt;</span>
       <input id="msg" placeholder="transmitir mensagem..." autocomplete="off">
       <button onclick="send()">ENVIAR</button>
     </div>
@@ -169,13 +291,30 @@ const chat = document.getElementById('chat');
 const msgInput = document.getElementById('msg');
 const statusEl = document.getElementById('status');
 let myNick, since = 0, pollTimer;
+const seen = new Set(); // deduplica mensagens entre instâncias serverless
 
 async function api(path, body) {
   const opts = body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {};
   return (await fetch(path, opts)).json();
 }
 
+/* ===== temas ===== */
+function setTheme(hex, name) {
+  const r = document.documentElement.style;
+  r.setProperty('--c', hex);
+  r.setProperty('--c-dim', hexToRgba(hex, .45));
+  r.setProperty('--c-soft', hexToRgba(hex, .08));
+  localStorage.setItem('netrunner_theme', JSON.stringify({ hex, name }));
+  rainColor = hex;
+}
+function hexToRgba(hex, a) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
 function boot() {
+  const savedTheme = JSON.parse(localStorage.getItem('netrunner_theme') || 'null');
+  if (savedTheme) setTheme(savedTheme.hex, savedTheme.name);
   const saved = localStorage.getItem('netrunner_nick');
   if (saved) document.getElementById('nick').value = saved;
   document.getElementById('nick').addEventListener('keydown', e => { if (e.key === 'Enter') join(); });
@@ -201,11 +340,27 @@ async function join() {
   } catch { statusEl.textContent = 'ERRO DE CONEXÃO'; }
 }
 
+function trocarNome() {
+  clearInterval(pollTimer);
+  myNick = null;
+  localStorage.removeItem('netrunner_nick');
+  document.getElementById('nick').value = '';
+  document.getElementById('nick').placeholder = 'DIGITE SEU CODINOME';
+  document.getElementById('login').style.display = 'flex';
+  statusEl.textContent = 'OFFLINE';
+  statusEl.classList.remove('on');
+  document.getElementById('nick').focus();
+}
+
 async function poll() {
   try {
     const r = await api(`/api/poll?since=${since}&nick=${encodeURIComponent(myNick)}`);
     since = r.total;
-    r.messages.forEach(m => m.type === 'chat' ? render(m) : sysMsg(m.text));
+    r.messages.forEach(m => {
+      if (m.id && seen.has(m.id)) return;
+      if (m.id) seen.add(m.id);
+      m.type === 'chat' ? render(m) : sysMsg(m.text);
+    });
     renderUsers(r.users);
   } catch { statusEl.textContent = 'INSTÁVEL...'; statusEl.classList.remove('on'); }
 }
@@ -235,28 +390,43 @@ async function send() {
   const text = msgInput.value.trim();
   if (!text || !myNick) return;
   msgInput.value = '';
+  if (text.toLowerCase().startsWith('/nick ')) { mudarNick(text.slice(6)); return; }
+  if (text === '/help' || text === '/ajuda') { sysMsg('COMANDOS: /nick NOVO_NOME — trocar codinome | /limpar — limpar tela'); return; }
+  if (text === '/limpar') { chat.innerHTML = ''; return; }
   await api('/api/send', { nick: myNick, text });
   poll();
+}
+
+async function mudarNick(novo) {
+  novo = novo.trim().slice(0, 16).toUpperCase();
+  if (!novo) { sysMsg('USO: /nick SEU_NOVO_CODINOME'); return; }
+  const antigo = myNick;
+  myNick = novo;
+  localStorage.setItem('netrunner_nick', novo);
+  const r = await api('/api/join', { nick: novo });
+  since = r.total; // não repetir histórico
+  sysMsg(`CODINOME ALTERADO: ${antigo} >> ${novo}`);
 }
 
 function escapeHtml(s) {
   return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-/* chuva matrix de fundo */
+/* chuva matrix de fundo (cor segue o tema) */
+let rainColor = '#fcee0a';
 function rain() {
   const c = document.getElementById('matrix-rain');
   const ctx = c.getContext('2d');
   function size() { c.width = innerWidth; c.height = innerHeight; }
-  size(); onresize = size;
-  const chars = 'アイウエオカキクケコ01<>/#$%&*';
+  size();
+  const chars = 'アイウエオカキクケコ01<>/#$%&*ﾊﾋﾌﾍﾎ';
   let cols, drops;
   function reset() { cols = Math.floor(c.width / 16); drops = Array(cols).fill(1); }
   reset(); onresize = () => { size(); reset(); };
   setInterval(() => {
     ctx.fillStyle = 'rgba(0,0,0,0.08)';
     ctx.fillRect(0, 0, c.width, c.height);
-    ctx.fillStyle = '#00ff41';
+    ctx.fillStyle = rainColor;
     ctx.font = '14px monospace';
     drops.forEach((y, i) => {
       ctx.fillText(chars[Math.random() * chars.length | 0], i * 16, y * 16);
