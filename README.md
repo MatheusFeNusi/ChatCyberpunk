@@ -4,11 +4,14 @@ Chat estilo terminal hacker, verde, nosso canal seguro. Dois PCs conectados. É 
 
 ## Como usar
 
+Deploy no Vercel (serverless, via funções em `api/` + polling HTTP): basta importar o repositório, sem configuração extra. Cada operador digita seu codinome na tela de acesso e entra na rede.
+
+Para rodar local com WebSocket em tempo real:
 ```bash
 npm install
 npm start
 ```
-Depois dele, abra o navegador em dois dispositivos na mesma rede, acesse `http://<IP-do-servidor>:3000`, informe o codinome e... divirta-se.
+Depois acesse `http://localhost:3000` (ou `http://<IP>:3000` de outro dispositivo na mesma rede).
 
 ## Recursos
 - WebSocket privado

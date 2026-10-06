@@ -167,7 +167,12 @@
 const chat = document.getElementById('chat');
 const msgInput = document.getElementById('msg');
 const statusEl = document.getElementById('status');
-let ws, myNick;
+let myNick, since = 0, pollTimer;
+
+async function api(path, body) {
+  const opts = body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {};
+  return (await fetch(path, opts)).json();
+}
 
 function boot() {
   const saved = localStorage.getItem('netrunner_nick');
@@ -177,26 +182,31 @@ function boot() {
   rain();
 }
 
-function join() {
-  const nick = document.getElementById('nick').value.trim() || 'ANÔNIMO';
+async function join() {
+  const nick = document.getElementById('nick').value.trim();
+  if (!nick) { document.getElementById('nick').placeholder = 'CODINOME OBRIGATÓRIO!'; return; }
   localStorage.setItem('netrunner_nick', nick);
   myNick = nick.toUpperCase();
-  ws = new WebSocket(`ws://${location.host}`);
-  ws.onopen = () => {
-    ws.send(JSON.stringify({ type: 'join', nick }));
+  try {
+    const r = await api('/api/join', { nick: myNick });
+    since = r.total || 0;
     document.getElementById('login').style.display = 'none';
     statusEl.textContent = 'CONECTADO';
     statusEl.classList.add('on');
+    sysMsg('CONEXÃO ESTABELECIDA. BEM-VINDO À REDE, ' + myNick + '.');
     msgInput.focus();
-  };
-  ws.onclose = () => { statusEl.textContent = 'DESCONECTADO'; statusEl.classList.remove('on'); };
-  ws.onmessage = (e) => {
-    const m = JSON.parse(e.data);
-    if (m.type === 'init') { m.history.forEach(render); renderUsers(m.users); sysMsg('CONEXÃO ESTABELECIDA. BEM-VINDO À REDE, ' + myNick + '.'); }
-    if (m.type === 'chat') render(m);
-    if (m.type === 'system') sysMsg(m.text);
-    if (m.type === 'users') renderUsers(m.users);
-  };
+    poll();
+    pollTimer = setInterval(poll, 1500);
+  } catch { statusEl.textContent = 'ERRO DE CONEXÃO'; }
+}
+
+async function poll() {
+  try {
+    const r = await api(`/api/poll?since=${since}&nick=${encodeURIComponent(myNick)}`);
+    since = r.total;
+    r.messages.forEach(m => m.type === 'chat' ? render(m) : sysMsg(m.text));
+    renderUsers(r.users);
+  } catch { statusEl.textContent = 'INSTÁVEL...'; statusEl.classList.remove('on'); }
 }
 
 function render(m) {
@@ -220,11 +230,12 @@ function renderUsers(users) {
   document.getElementById('users').innerHTML = users.map(u => `<li>${escapeHtml(u)}</li>`).join('');
 }
 
-function send() {
+async function send() {
   const text = msgInput.value.trim();
-  if (!text || !ws || ws.readyState !== 1) return;
-  ws.send(JSON.stringify({ type: 'chat', text }));
+  if (!text || !myNick) return;
   msgInput.value = '';
+  await api('/api/send', { nick: myNick, text });
+  poll();
 }
 
 function escapeHtml(s) {
