@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NETRUNNER // CHAT PRIVADO</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #000;
+    color: #00ff41;
+    font-family: 'Courier New', monospace;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  /* scanlines */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,.25) 0 1px, transparent 1px 3px);
+    pointer-events: none;
+    z-index: 99;
+  }
+  /* glow flicker */
+  @keyframes flicker {
+    0%,100% { opacity: 1; } 3% { opacity: .8; } 6% { opacity: 1; } 54% { opacity: .92; } 57% { opacity: 1; }
+  }
+  .glow { text-shadow: 0 0 5px #00ff41, 0 0 12px rgba(0,255,65,.6); animation: flicker 4s infinite; }
+
+  header {
+    padding: 12px 20px;
+    border-bottom: 1px solid #00ff41;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0,255,65,.04);
+  }
+  header h1 { font-size: 18px; letter-spacing: 4px; }
+  #status { font-size: 12px; color: #008f24; }
+  #status.on { color: #00ff41; }
+
+  #main { display: flex; flex: 1; overflow: hidden; }
+
+  #sidebar {
+    width: 200px;
+    border-right: 1px solid #00ff41;
+    padding: 14px;
+    font-size: 13px;
+    background: rgba(0,255,65,.03);
+  }
+  #sidebar h2 { font-size: 13px; letter-spacing: 2px; margin-bottom: 10px; border-bottom: 1px dashed #008f24; padding-bottom: 6px; }
+  #users li { list-style: none; padding: 4px 0; }
+  #users li::before { content: '> '; }
+
+  #chat-wrap { flex: 1; display: flex; flex-direction: column; }
+
+  #chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  #chat::-webkit-scrollbar { width: 8px; }
+  #chat::-webkit-scrollbar-thumb { background: #008f24; }
+  .msg .nick { color: #7dffab; }
+  .msg .time { color: #008f24; font-size: 11px; }
+  .sys { color: #008f24; font-style: italic; }
+
+  #input-bar {
+    display: flex;
+    border-top: 1px solid #00ff41;
+    background: rgba(0,255,65,.05);
+  }
+  #prompt { padding: 14px 8px 14px 20px; font-weight: bold; }
+  #msg {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #00ff41;
+    font-family: inherit;
+    font-size: 15px;
+    padding: 14px 20px 14px 4px;
+    caret-color: #00ff41;
+  }
+  button {
+    background: #003b0f;
+    color: #00ff41;
+    border: 1px solid #00ff41;
+    font-family: inherit;
+    letter-spacing: 2px;
+    padding: 0 24px;
+    cursor: pointer;
+  }
+  button:hover { background: #00ff41; color: #000; }
+
+  /* login overlay */
+  #login {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    gap: 18px;
+  }
+  #login h1 { font-size: 26px; letter-spacing: 6px; }
+  #login .sub { color: #008f24; font-size: 12px; letter-spacing: 3px; }
+  #nick {
+    background: transparent;
+    border: 1px solid #00ff41;
+    color: #00ff41;
+    font-family: inherit;
+    font-size: 16px;
+    text-align: center;
+    padding: 10px 16px;
+    outline: none;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  #login button { padding: 10px 30px; }
+  .cursor::after { content: '█'; animation: blink 0.8s step-start infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  #matrix-rain {
+    position: fixed; inset: 0; z-index: -1; opacity: .15;
+  }
+</style>
+</head>
+<body onload="boot()">
+
+<canvas id="matrix-rain"></canvas>
+
+<div id="login">
+  <h1 class="glow">NETRUNNER_</h1>
+  <div class="sub">CANAL SEGURO // ACESSO RESTRITO</div>
+  <input id="nick" maxlength="16" placeholder="DIGITE SEU CODINOME" autocomplete="off">
+  <button onclick="join()">CONECTAR &gt;&gt;</button>
+</div>
+
+<header>
+  <h1 class="glow">▓▒░ NETRUNNER // CHAT PRIVADO ░▒▓</h1>
+  <span id="status">OFFLINE</span>
+</header>
+
+<div id="main">
+  <div id="sidebar">
+    <h2>OPERADORES ONLINE</h2>
+    <ul id="users"></ul>
+  </div>
+  <div id="chat-wrap">
+    <div id="chat"></div>
+    <div id="input-bar">
+      <span id="prompt" class="glow">root&gt;_</span>
+      <input id="msg" placeholder="transmitir mensagem..." autocomplete="off">
+      <button onclick="send()">ENVIAR</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const chat = document.getElementById('chat');
+const msgInput = document.getElementById('msg');
+const statusEl = document.getElementById('status');
+let ws, myNick;
+
+function boot() {
+  const saved = localStorage.getItem('netrunner_nick');
+  if (saved) document.getElementById('nick').value = saved;
+  document.getElementById('nick').addEventListener('keydown', e => { if (e.key === 'Enter') join(); });
+  document.getElementById('msg').addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+  rain();
+}
+
+function join() {
+  const nick = document.getElementById('nick').value.trim() || 'ANÔNIMO';
+  localStorage.setItem('netrunner_nick', nick);
+  myNick = nick.toUpperCase();
+  ws = new WebSocket(`ws://${location.host}`);
+  ws.onopen = () => {
+    ws.send(JSON.stringify({ type: 'join', nick }));
+    document.getElementById('login').style.display = 'none';
+    statusEl.textContent = 'CONECTADO';
+    statusEl.classList.add('on');
+    msgInput.focus();
+  };
+  ws.onclose = () => { statusEl.textContent = 'DESCONECTADO'; statusEl.classList.remove('on'); };
+  ws.onmessage = (e) => {
+    const m = JSON.parse(e.data);
+    if (m.type === 'init') { m.history.forEach(render); renderUsers(m.users); sysMsg('CONEXÃO ESTABELECIDA. BEM-VINDO À REDE, ' + myNick + '.'); }
+    if (m.type === 'chat') render(m);
+    if (m.type === 'system') sysMsg(m.text);
+    if (m.type === 'users') renderUsers(m.users);
+  };
+}
+
+function render(m) {
+  const div = document.createElement('div');
+  div.className = 'msg';
+  const who = m.nick === myNick ? 'VOCÊ' : m.nick;
+  div.innerHTML = `<span class="time">[${m.time}]</span> <span class="nick glow">${who}@net:~$</span> ${escapeHtml(m.text)}`;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function sysMsg(text) {
+  const div = document.createElement('div');
+  div.className = 'sys';
+  div.textContent = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function renderUsers(users) {
+  document.getElementById('users').innerHTML = users.map(u => `<li>${escapeHtml(u)}</li>`).join('');
+}
+
+function send() {
+  const text = msgInput.value.trim();
+  if (!text || !ws || ws.readyState !== 1) return;
+  ws.send(JSON.stringify({ type: 'chat', text }));
+  msgInput.value = '';
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* chuva matrix de fundo */
+function rain() {
+  const c = document.getElementById('matrix-rain');
+  const ctx = c.getContext('2d');
+  function size() { c.width = innerWidth; c.height = innerHeight; }
+  size(); onresize = size;
+  const chars = 'アイウエオカキクケコ01<>/#$%&*';
+  let cols, drops;
+  function reset() { cols = Math.floor(c.width / 16); drops = Array(cols).fill(1); }
+  reset(); onresize = () => { size(); reset(); };
+  setInterval(() => {
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.fillStyle = '#00ff41';
+    ctx.font = '14px monospace';
+    drops.forEach((y, i) => {
+      ctx.fillText(chars[Math.random() * chars.length | 0], i * 16, y * 16);
+      if (y * 16 > c.height && Math.random() > .975) drops[i] = 0;
+      drops[i]++;
+    });
+  }, 66);
+}
+</script>
+</body>
+</html>
